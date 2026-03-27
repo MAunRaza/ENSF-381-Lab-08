@@ -32,31 +32,85 @@ PREDICTION_COLUMNS = [
 ]
 
 app = Flask(__name__)
-# For this lab, allow cross-origin requests from the React dev server.
-# This broad setup keeps local development simple and is not standard
-# production practice.
 CORS(app)
 users = deepcopy(SEEDED_USERS)
 
 
-# TODO: Define these Flask routes with @app.route():
-# - GET /users
-#   Return 200 on success. The frontend still expects a JSON array,
-#   so return list(users.values()) instead of the dict directly.
-# - POST /users
-#   Return 201 for a successful create, 400 for invalid input,
-#   and 409 if the id already exists. Since users is a dict keyed by
-#   id, use the id as the lookup key when checking for duplicates.
-# - PUT /users/<user_id>
-#   Return 200 for a successful update, 400 for invalid input,
-#   and 404 if the user does not exist. Update the matching record
-#   with users[user_id] = {...} after confirming the key exists.
-# - DELETE /users/<user_id>
-#   Return 200 for a successful delete and 404 if the user does not
-#   exist. Delete with del users[user_id] after confirming the key
-#   exists.
-#   Exercise2
-# - POST /predict_house_price
+@app.route("/users", methods=["GET"])
+def get_users():
+    return jsonify(list(users.values())), 200
+
+
+@app.route("/users", methods=["POST"])
+def create_user():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"message": "Invalid request body."}), 400
+
+    user_id = data.get("id")
+    first_name = data.get("first_name")
+    user_group = data.get("user_group")
+
+    if user_id is None or first_name is None or user_group is None:
+        return jsonify({"message": "Missing id, first_name, or user_group."}), 400
+
+    user_id = str(user_id)
+
+    if user_id in users:
+        return jsonify({"message": f"User {user_id} already exists."}), 409
+
+    users[user_id] = {
+        "id": user_id,
+        "first_name": first_name,
+        "user_group": user_group,
+    }
+
+    return jsonify({
+        "id": user_id,
+        "first_name": first_name,
+        "user_group": user_group,
+        "message": f"Created user {user_id}.",
+    }), 201
+
+
+@app.route("/users/<user_id>", methods=["PUT"])
+def update_user(user_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"message": "Invalid request body."}), 400
+
+    if user_id not in users:
+        return jsonify({"message": f"User {user_id} was not found."}), 404
+
+    first_name = data.get("first_name")
+    user_group = data.get("user_group")
+
+    if first_name is None or user_group is None:
+        return jsonify({"message": "Missing first_name or user_group."}), 400
+
+    users[user_id] = {
+        "id": user_id,
+        "first_name": first_name,
+        "user_group": user_group,
+    }
+
+    return jsonify({
+        "id": user_id,
+        "first_name": first_name,
+        "user_group": user_group,
+        "message": f"Updated user {user_id}.",
+    }), 200
+
+
+@app.route("/users/<user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    if user_id not in users:
+        return jsonify({"message": f"User {user_id} was not found."}), 404
+
+    del users[user_id]
+    return jsonify({"message": f"Deleted user {user_id}."}), 200
 
 
 if __name__ == "__main__":
