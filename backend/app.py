@@ -112,6 +112,97 @@ def delete_user(user_id):
     del users[user_id]
     return jsonify({"message": f"Deleted user {user_id}."}), 200
 
+@app.route("/predict_house_price", methods=["POST"])
+def predict_house_price():
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"message": "Invalid request body."}), 400
+
+        required_fields = [
+            "city",
+            "province",
+            "latitude",
+            "longitude",
+            "lease_term",
+            "type",
+            "beds",
+            "baths",
+            "sq_feet",
+            "furnishing",
+            "smoking",
+            "pets",
+        ]
+
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"message": f"Missing required field: {field}."}), 400
+
+        try:
+            latitude = float(data["latitude"])
+        except (TypeError, ValueError):
+            return jsonify({"message": "latitude must be a number."}), 400
+
+        try:
+            longitude = float(data["longitude"])
+        except (TypeError, ValueError):
+            return jsonify({"message": "longitude must be a number."}), 400
+
+        try:
+            beds = float(data["beds"])
+        except (TypeError, ValueError):
+            return jsonify({"message": "beds must be a number."}), 400
+
+        try:
+            baths = float(data["baths"])
+        except (TypeError, ValueError):
+            return jsonify({"message": "baths must be a number."}), 400
+
+        try:
+            sq_feet = float(data["sq_feet"])
+        except (TypeError, ValueError):
+            return jsonify({"message": "sq_feet must be a number."}), 400
+
+        pets_value = data["pets"]
+
+        if isinstance(pets_value, bool):
+            pets = pets_value
+        elif isinstance(pets_value, str):
+            pets = pets_value.strip().lower() == "true"
+        else:
+            pets = bool(pets_value)
+
+        cats = pets
+        dogs = pets
+
+        model = joblib.load(MODEL_PATH)
+
+        sample_data = [
+            str(data["city"]),
+            str(data["province"]),
+            latitude,
+            longitude,
+            str(data["lease_term"]),
+            str(data["type"]),
+            beds,
+            baths,
+            sq_feet,
+            str(data["furnishing"]),
+            str(data["smoking"]),
+            cats,
+            dogs,
+        ]
+
+        sample_df = pd.DataFrame([sample_data], columns=PREDICTION_COLUMNS)
+
+        predicted_price = model.predict(sample_df)
+        predicted_price = float(predicted_price[0])
+
+        return jsonify({"predicted_price": predicted_price}), 200
+
+    except Exception as error:
+        return jsonify({"message": str(error)}), 400
 
 if __name__ == "__main__":
     app.run(debug=True, port=5050)
